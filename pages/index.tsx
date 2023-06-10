@@ -1,6 +1,8 @@
 //@ts-nocheck
 
 import dayjs from "dayjs"
+import isToday from "dayjs/plugin/isToday" // Import the isToday plugin
+import isYesterday from "dayjs/plugin/isYesterday" // Import the isYesterday plugin
 import relativeTime from "dayjs/plugin/relativeTime"
 import { collection, getDocs, getFirestore } from "firebase/firestore"
 import { Fragment, useEffect, useState } from "react"
@@ -19,7 +21,10 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline"
 
+dayjs.extend(isYesterday) // Use the isYesterday plugin
+
 dayjs.extend(relativeTime)
+dayjs.extend(isToday)
 
 const navigation = [
   { name: "Dashboard", href: "#", icon: HomeIcon, current: false },
@@ -91,10 +96,9 @@ export default function Example() {
     getSales()
   }, [])
 
-  const totalSalesValue = salesData.reduce(
-    (acc, curr) => acc + Number(curr.price),
-    0
-  )
+  const totalSalesValue = salesData
+    ?.filter((s) => dayjs(s.uodated_at).isToday())
+    ?.reduce((acc, curr) => acc + Number(curr.price), 0)
 
   const titleCounts = salesData.reduce((acc, curr) => {
     const title = curr.title
@@ -113,19 +117,23 @@ export default function Example() {
     ""
   )
 
-  const mostPopularSales = salesData.filter(
-    (sale) => sale.title === mostPopularTitle
-  )
+  const yesterdaySales = salesData
+    ?.filter((s) => dayjs(s.uodated_at).isYesterday())
+    ?.reduce((acc, curr) => acc + Number(curr.price), 0)
 
   const stats = [
-    { name: "Orders today", value: salesData?.length },
     {
-      name: "Sales value",
+      name: "Orders today",
+      value: salesData?.filter((sale) => dayjs(sale.uodated_at).isToday())
+        .length,
+    },
+    {
+      name: "Sales today",
       value: roundedDollar(totalSalesValue, 2),
       unit: "USD",
     },
     { name: "Popular", value: mostPopularTitle },
-    { name: "Popular orders", value: mostPopularSales.length },
+    { name: "Sales yesterday", value: roundedDollar(yesterdaySales, 2) },
   ]
 
   console.log("salesData", salesData)
@@ -515,6 +523,7 @@ export default function Example() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {[...salesData]
+                    ?.filter((sale) => dayjs(sale.uodated_at).isToday())
                     ?.sort(
                       (a, b) => new Date(b.uodated_at) - new Date(a.uodated_at)
                     )
